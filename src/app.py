@@ -183,6 +183,16 @@ def status():
     with status_lock:
         return jsonify(queue_status)
 
+@app.route('/health', methods=['GET'])
+def health_check():
+    """Returns the current internet connectivity status."""
+    try:
+        # Quick 2-second check to see if the Pi can reach the outside world
+        requests.get("https://1.1.1.1", timeout=2)
+        return jsonify({"internet": True})
+    except requests.RequestException:
+        return jsonify({"internet": False})
+
 if __name__ == '__main__':
     try:
         ensure_network()

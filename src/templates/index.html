@@ -33,6 +33,12 @@
                 </h1>
                 <p class="text-sm text-gray-400 mt-1">Paste your Archive of Our Own links below</p>
             </div>
+
+                <!-- Network Status Indicator -->
+            <div class="flex items-center gap-2 bg-gray-950 border border-gray-700 rounded-full px-3 py-1.5 text-xs font-medium transition-colors duration-300" id="networkBadge">
+                <span class="w-2.5 h-2.5 rounded-full bg-gray-500 animate-pulse" id="networkDot"></span>
+                <span id="networkText" class="text-gray-400">Checking...</span>
+            </div>
         </div>
 
         <!-- Input Section -->
@@ -162,13 +168,45 @@
             }
         }
 
+        async function checkNetwork() {
+            const badge = document.getElementById('networkBadge');
+            const dot = document.getElementById('networkDot');
+            const text = document.getElementById('networkText');
+
+            try {
+                const res = await fetch('/health');
+                const data = await res.json();
+                
+                if (data.internet) {
+                    dot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]';
+                    text.textContent = 'Online';
+                    text.className = 'text-emerald-400';
+                    badge.className = 'flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-3 py-1.5 text-xs font-medium transition-colors duration-300';
+                } else {
+                    dot.className = 'w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]';
+                    text.textContent = 'Offline';
+                    text.className = 'text-red-400';
+                    badge.className = 'flex items-center gap-2 bg-red-500/10 border border-red-500/20 rounded-full px-3 py-1.5 text-xs font-medium transition-colors duration-300';
+                }
+            } catch (e) {
+                dot.className = 'w-2.5 h-2.5 rounded-full bg-gray-500';
+                text.textContent = 'Server Unreachable';
+                text.className = 'text-gray-400';
+                badge.className = 'flex items-center gap-2 bg-gray-900 border border-gray-700 rounded-full px-3 py-1.5 text-xs font-medium transition-colors duration-300';
+            }
+        }
+
         function escapeHtml(str) {
             return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
         }
 
         // Auto-refresh the queue list every 2 seconds
         setInterval(fetchStatus, 2000);
+        setInterval(checkNetwork, 10000);
+        
+        // Initial calls
         fetchStatus();
+        checkNetwork();
     </script>
 </body>
 </html>
