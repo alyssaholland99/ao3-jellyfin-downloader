@@ -8,7 +8,7 @@ services:
       - SAVE_FOLDER=/app/books
       - JELLYFIN_URL=http://localhost:8096
       - JELLYFIN_API_KEY=your_api_key
-      - WIFI_SSID=Holland WiFi
+      - WIFI_SSID=wifi_if_running_on_wifi
     volumes:
       - /Jellyfin/Books:/app/books
       - /var/run/dbus/system_bus_socket:/var/run/dbus/system_bus_socket
