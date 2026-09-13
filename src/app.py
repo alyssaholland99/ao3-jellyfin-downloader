@@ -123,14 +123,32 @@ def worker():
             safe_title = "".join([c for c in title if c.isalnum() or c in (' ', '_', '-')]).strip()
             filepath = os.path.join(SAVE_FOLDER, f"{safe_title}.epub")
             
-            # Download file
             headers = {"User-Agent": "Mozilla/5.0"}
-            r = requests.get(download_url, headers=headers, stream=True, timeout=1800)
-            r.raise_for_status()
+            max_retries = 8
             
-            with open(filepath, 'wb') as f:
-                for chunk in r.iter_content(chunk_size=8192):
-                    f.write(chunk)
+            for attempt in range(max_retries):
+                try:
+                    r = requests.get(download_url, headers=headers, stream=True, timeout=30)
+                    r.raise_for_status()
+                    
+                    with open(filepath, 'wb') as f:
+                        for chunk in r.iter_content(chunk_size=8192):
+                            f.write(chunk)
+                            
+                    break  # Success, exit the retry loop
+                    
+                except requests.RequestException as e:
+                    if attempt == max_retries - 1:
+                        raise Exception(f"Cloudflare/Network error after {max_retries} attempts: {e}")
+                    
+                    # Update the UI so you know it's retrying
+                    with status_lock:
+                        for item in queue_status:
+                            if item['id'] == task_id:
+                                item['status'] = f'Downloading... (Retry #{attempt + 1})'
+                                
+                    # Wait 15 seconds to give AO3's backend time to finish compiling the massive file
+                    time.sleep(15)
                     
             # Calculate the file size
             size_bytes = os.path.getsize(filepath)
