@@ -132,12 +132,20 @@ def worker():
                 for chunk in r.iter_content(chunk_size=8192):
                     f.write(chunk)
                     
+            # Calculate the file size
+            size_bytes = os.path.getsize(filepath)
+            if size_bytes < 1024 * 1024:
+                size_str = f"{size_bytes / 1024:.1f} KB"
+            else:
+                size_str = f"{size_bytes / (1024 * 1024):.2f} MB"
+                    
             notify_jellyfin()
             
             with status_lock:
                 for item in queue_status:
                     if item['id'] == task_id:
-                        item['status'] = 'Completed'
+                        # Append the size to the status badge
+                        item['status'] = f'Completed ({size_str})' 
                         item['title'] = title
         except Exception as e:
             with status_lock:
