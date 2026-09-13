@@ -125,7 +125,7 @@ def worker():
             
             # Download file
             headers = {"User-Agent": "Mozilla/5.0"}
-            r = requests.get(download_url, headers=headers, stream=True, timeout=30)
+            r = requests.get(download_url, headers=headers, stream=True, timeout=900)
             r.raise_for_status()
             
             with open(filepath, 'wb') as f:
