@@ -13,7 +13,7 @@ app = Flask(__name__)
 SAVE_FOLDER = os.environ.get("SAVE_FOLDER", "/app/books")
 JELLYFIN_URL = os.environ.get("JELLYFIN_URL", "http://localhost:8096")
 JELLYFIN_API_KEY = os.environ.get("JELLYFIN_API_KEY", "YOUR_JELLYFIN_API_KEY")
-WIFI_SSID = os.environ.get("WIFI_SSID", "Holland WiFi")
+WIFI_SSID = os.environ.get("WIFI_SSID", "")
 # ---------------------
 
 download_queue = queue.Queue()
