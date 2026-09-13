@@ -90,9 +90,16 @@ def notify_jellyfin():
     """Tells Jellyfin to rescan the library."""
     try:
         url = f"{JELLYFIN_URL}/Library/Refresh"
-        headers = {"X-Emby-Token": JELLYFIN_API_KEY}
-        requests.post(url, headers=headers, timeout=5)
-        print("[Jellyfin] Library refresh triggered.")
+        
+        # Use the official Jellyfin Authorization header
+        headers = {"Authorization": f'MediaBrowser Token="{JELLYFIN_API_KEY}"'}
+        
+        resp = requests.post(url, headers=headers, timeout=10)
+        
+        # Force Python to throw an error if Jellyfin returns a 401 (Unauthorized), 404, etc.
+        resp.raise_for_status() 
+        
+        print("[Jellyfin] Library refresh triggered successfully.")
     except Exception as e:
         print(f"[Jellyfin] API error: {e}")
 
