@@ -1,0 +1,15 @@
+services:
+  ao3-downloader:
+    build: .
+    container_name: ao3-downloader
+    network_mode: "host"
+    privileged: true
+    environment:
+      - SAVE_FOLDER=/app/books
+      - JELLYFIN_URL=http://localhost:8096
+      - JELLYFIN_API_KEY=your_api_key
+      - WIFI_SSID=Holland WiFi
+    volumes:
+      - /Jellyfin/Books:/app/books
+      - /var/run/dbus/system_bus_socket:/var/run/dbus/system_bus_socket
+    restart: unless-stopped

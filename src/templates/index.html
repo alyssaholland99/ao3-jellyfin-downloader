@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AO3 to Jellyfin Downloader</title>
+    <!-- Tailwind CSS for rapid, modern styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        jellyfin: '#00a4dc',
+                        jellyfinDark: '#0085b2',
+                        ao3: '#990000'
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-950 text-gray-200 font-sans min-h-screen p-4 md:p-8 flex justify-center items-start">
+
+    <div class="w-full max-w-3xl bg-gray-900 border border-gray-800 rounded-2xl shadow-2xl overflow-hidden mt-4 md:mt-10">
+        
+        <!-- Header -->
+        <div class="bg-gray-800/50 p-6 md:p-8 border-b border-gray-800 flex items-center justify-between">
+            <div>
+                <h1 class="text-2xl font-bold text-white flex items-center gap-3">
+                    <svg class="w-8 h-8 text-jellyfin" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14.5v-9l6 4.5-6 4.5z"/></svg>
+                    AO3 <span class="text-gray-400 font-light mx-1">to</span> Jellyfin
+                </h1>
+                <p class="text-sm text-gray-400 mt-1">Paste your Archive of Our Own links below to send them to your Raspberry Pi.</p>
+            </div>
+        </div>
+
+        <!-- Input Section -->
+        <div class="p-6 md:p-8">
+            <label for="urlInput" class="block text-sm font-medium text-gray-400 mb-2">AO3 Work URLs (One per line)</label>
+            <textarea id="urlInput" rows="4" 
+                class="w-full bg-gray-950 border border-gray-700 rounded-xl p-4 text-gray-200 placeholder-gray-600 focus:ring-2 focus:ring-jellyfin focus:border-transparent transition-all outline-none font-mono text-sm resize-y" 
+                placeholder="https://archiveofourown.org/works/12345678&#10;https://archiveofourown.org/works/87654321"></textarea>
+            
+            <button id="submitBtn" onclick="submitUrls()" 
+                class="w-full mt-4 bg-jellyfin hover:bg-jellyfinDark text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-jellyfin/20 active:scale-[0.98]">
+                <svg id="btnIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                <svg id="btnSpinner" class="w-5 h-5 animate-spin hidden" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                <span id="btnText">Add to Queue</span>
+            </button>
+        </div>
+
+        <!-- Queue Section -->
+        <div class="bg-gray-950/50 p-6 md:p-8 border-t border-gray-800 min-h-[300px]">
+            <h2 class="text-lg font-medium text-white mb-4 flex items-center justify-between">
+                Current Queue
+                <span id="queueCount" class="bg-gray-800 text-gray-300 text-xs py-1 px-3 rounded-full">0 items</span>
+            </h2>
+            <div id="queueContainer" class="space-y-3">
+                <!-- Items injected by JS -->
+                <div class="text-center py-10 text-gray-500 animate-pulse">Loading queue data...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function submitUrls() {
+            const inputEl = document.getElementById('urlInput');
+            const btnText = document.getElementById('btnText');
+            const btnIcon = document.getElementById('btnIcon');
+            const btnSpinner = document.getElementById('btnSpinner');
+            const btn = document.getElementById('submitBtn');
+
+            const text = inputEl.value;
+            const urls = text.split('\n').map(u => u.trim()).filter(u => u.length > 0);
+            
+            if (urls.length === 0) return;
+
+            // Loading state
+            btn.disabled = true;
+            btn.classList.add('opacity-75', 'cursor-not-allowed');
+            btnText.textContent = 'Adding...';
+            btnIcon.classList.add('hidden');
+            btnSpinner.classList.remove('hidden');
+            
+            try {
+                const response = await fetch('/enqueue', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ urls })
+                });
+
+                if (response.ok) {
+                    inputEl.value = '';
+                    fetchStatus();
+                } else {
+                    alert('Failed to add URLs. Check Pi connection.');
+                }
+            } catch (e) {
+                console.error("Network error", e);
+            } finally {
+                // Reset state
+                btn.disabled = false;
+                btn.classList.remove('opacity-75', 'cursor-not-allowed');
+                btnText.textContent = 'Add to Queue';
+                btnIcon.classList.remove('hidden');
+                btnSpinner.classList.add('hidden');
+            }
+        }
+
+        async function fetchStatus() {
+            try {
+                const res = await fetch('/status');
+                const data = await res.json();
+                const container = document.getElementById('queueContainer');
+                document.getElementById('queueCount').textContent = `${data.length} item${data.length !== 1 ? 's' : ''}`;
+                
+                if (data.length === 0) {
+                    container.innerHTML = `
+                        <div class="flex flex-col items-center justify-center py-12 text-gray-500">
+                            <svg class="w-12 h-12 mb-3 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path></svg>
+                            <p>Your queue is currently empty.</p>
+                        </div>`;
+                    return;
+                }
+
+                container.innerHTML = data.slice().reverse().map(item => {
+                    let badgeClass = '';
+                    let iconHtml = '';
+
+                    if (item.status.includes('Queued')) {
+                        badgeClass = 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20';
+                        iconHtml = `<svg class="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`;
+                    } else if (item.status.includes('Downloading')) {
+                        badgeClass = 'bg-blue-500/10 text-blue-400 border-blue-500/20';
+                        iconHtml = `<svg class="w-3.5 h-3.5 mr-1.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
+                    } else if (item.status.includes('Completed')) {
+                        badgeClass = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+                        iconHtml = `<svg class="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>`;
+                    } else if (item.status.includes('Failed')) {
+                        badgeClass = 'bg-red-500/10 text-red-400 border-red-500/20';
+                        iconHtml = `<svg class="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>`;
+                    }
+
+                    return `
+                        <div class="bg-gray-900 border border-gray-800 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all hover:border-gray-700">
+                            <div class="overflow-hidden">
+                                <h3 class="text-white font-medium truncate">${escapeHtml(item.title)}</h3>
+                                <a href="${escapeHtml(item.url)}" target="_blank" class="text-xs text-gray-500 hover:text-jellyfin truncate block mt-1 transition-colors">${escapeHtml(item.url)}</a>
+                            </div>
+                            <div class="flex-shrink-0 flex">
+                                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${badgeClass}">
+                                    ${iconHtml}
+                                    ${escapeHtml(item.status)}
+                                </span>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } catch (e) {
+                console.error("Error fetching status", e);
+            }
+        }
+
+        function escapeHtml(str) {
+            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+
+        // Auto-refresh the queue list every 2 seconds
+        setInterval(fetchStatus, 2000);
+        fetchStatus();
+    </script>
+</body>
+</html>
